@@ -203,25 +203,19 @@ if(!$oss_options['img_url'] == "")
  */
 function modefiy_img_meta($data) {
     $filename = basename($data['file']);
-
-    if(isset($data['sizes']['thumbnail'])) {
-        $data['sizes']['thumbnail']['file'] = $filename.'@!thumbnail';
+    foreach ($data['sizes'] as $size => $meta) {
+        $data['sizes'][$size]['file'] = $filename . '@' .
+        ($meta['width'] == $meta['height'] ?
+            '1e_1c_0o_1l_' . $meta['height'] . 'h_' . $meta['width'] . 'w_75q_1pr.src' :
+            '1e_1c_2o_1l_' . $meta['height'] . 'h_' . $meta['width'] . 'w_80q_1pr.src'
+        );
     }
-    if(isset($data['sizes']['post-thumbnail'])) {
-        $data['sizes']['post-thumbnail']['file'] = $filename.'@!post-thumbnail';
-    }
-    if(isset($data['sizes']['medium'])) {
-        $data['sizes']['medium']['file'] = $filename.'@!medium';
-    }
-    if(isset($data['sizes']['large'])) {
-        $data['sizes']['large']['file'] = $filename.'@!large';
-    }
-
     return $data;
 }
-if(!$oss_options['img_url'] == "")
+if(!$oss_options['img_url'] == "") {
     add_filter('wp_get_attachment_metadata', 'modefiy_img_meta', 990);
-
+    add_filter('wp_calculate_image_srcset_meta', 'modefiy_img_meta', 990);
+}
 /**
  * 重置图片链接，使用独立的图片服务器。
  * 仅在开启图片服务时启用
@@ -385,10 +379,9 @@ function oss_setting_page() {
                 <legend>Aliyun-OSS 图片服务的 URL</legend>
                 <input type="text" name="img_url" value="<?php echo $oss_img_url;?>" placeholder="http://"/>
                 <dl>
-                    <dt>请瞩目：</dt>
+                    <dt>请注意：</dt>
                     <dd>1.图片服务是可选的，留空即可不启用</dd>
-                    <dd>2.使用请先在Aliyun中设置好四种样式: <code>{'thumbnail','post-thumbnail','large','medium'}</code></dd>
-                    <dd>3.开启图片服务后，只有原图会上传到 OSS 中，缩略图不会再上传</dd>
+                    <dd>2.开启图片服务后，只有原图会上传到 OSS 中，缩略图不会再上传</dd>
                 </dl>
             </fieldset>
             <hr>
