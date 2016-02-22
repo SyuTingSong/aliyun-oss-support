@@ -52,6 +52,23 @@ function oss_admin_warnings($oss_options) {
 }
 oss_admin_warnings($oss_options);
 
+function resize_image($file, $max) {
+    list($srcW, $srcH) = getimagesize($file);
+    if ($srcW <= $max)
+        return;
+    $src = imagecreatefromjpeg($file);
+    if ($srcW > $srcH) {
+        $dstW = $max;
+        $dstH = round($max / $srcW * $srcH);
+    } else {
+        $dstH = $max;
+        $dstW = round($max / $srcH * $srcW);
+    }
+    $dst = imagecreatetruecolor($dstW, $dstH);
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $dstW, $dstH, $srcW, $srcH);
+    imagejpeg($dst, $file, 85);
+}
+
 /**
  * 上传原文件到 OSS (并根据设定清理本地文件)
  *
@@ -73,7 +90,9 @@ function upload_orign_2_oss($file)
         );
     $oss_upload_path = trim($oss_options['path'],'/');
     $oss_nolocalsaving = (esc_attr($oss_options['nolocalsaving'])=='true') ? true : false;
-
+    if ($file['type'] == 'image/jpeg' && $oss_options['max_img_size'] >= 100) {
+        resize_image($file['file'], $oss_options['max_img_size']);
+    }
     $object = str_replace($wp_uploads['basedir'], '', $file['file']);
     $object = ltrim($oss_upload_path . '/' .ltrim($object, '/'), '/');
 
@@ -150,7 +169,7 @@ add_filter('wp_generate_attachment_metadata', 'upload_thumb_2_oss', 60);
  */
 function delete_remote_file($file)
 {
-    if(!false == strpos($file, '@!'))
+    if(!false == strpos($file, '@'))
         return $file;
 
     $oss_options = get_option('oss_options', TRUE);
@@ -309,6 +328,9 @@ function oss_setting_page() {
     if(isset($_POST['img_url'])) {
         $options['img_url'] = trim(stripslashes($_POST['img_url']));
     }
+    if(isset($_POST['max_img_size'])) {
+        $options['max_img_size'] = intval($_POST['max_img_size']);
+    }
     if(isset($_POST['nolocalsaving'])) {
         $options['nolocalsaving'] = 'true';
     }
@@ -330,6 +352,7 @@ function oss_setting_page() {
     $end_point = isset($oss_options['end_point']) ? esc_attr($oss_options['end_point']) : null;
     $oss_static_url = isset($oss_options['static_url']) ? esc_attr($oss_options['static_url']) : null;
     $oss_img_url = isset($oss_options['img_url']) ? esc_attr($oss_options['img_url']) : null;
+    $oss_max_img_size = isset($oss_options['max_img_size']) ? esc_attr($oss_options['max_img_size']) : null;
 
     $oss_nolocalsaving = isset($oss_options['nolocalsaving']) ? esc_attr($oss_options['nolocalsaving']) : null;
     ($oss_nolocalsaving == 'true') ? ($oss_nolocalsaving = true) : ($oss_nolocalsaving = false);
@@ -373,6 +396,11 @@ function oss_setting_page() {
                 <legend>OSS-Http-Url</legend>
                 <input type="text" name="static_url" value="<?php echo $oss_static_url;?>" placeholder="http://"/>
                 <P>OSS Bucket 的可访问 URL，支持已绑定到 OSS 的独立域名，留空将使用本地资源</P>
+            </fieldset>
+            <fieldset>
+                <legend>上传前缩小JPEG图片到</legend>
+                <input type="text" name="max_img_size" value="<?php echo $oss_max_img_size;?>" placeholder="0表示不缩小" />
+                <p>上传到OSS前缩小JPEG图片(按长边等比例缩小)</p>
             </fieldset>
             <hr>
             <fieldset>
